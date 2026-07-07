@@ -2,6 +2,7 @@ import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
 import 'Models/expense.dart';
 import 'Models/maintenance_setting.dart';
+import 'Models/vehicle.dart';
 
 /// Сервис работы с локальной базой данных Isar.
 /// Отвечает за инициализацию хранилища, CRUD-операции по расходам и категориям,
@@ -21,10 +22,11 @@ class DatabaseService {
 
     final dir = await getApplicationDocumentsDirectory();
     isar = await Isar.open(
-      [ExpenseSchema, ExpenseCategorySchema, MaintenanceSettingSchema],
+      [ExpenseSchema, ExpenseCategorySchema, MaintenanceSettingSchema, VehicleSchema],
       directory: dir.path,
     );
     await _initDefaultCategories();
+    await _initDefaultVehicle();
     _isInitialized = true;
   }
 
@@ -43,6 +45,77 @@ class DatabaseService {
         await isar.expenseCategorys.putAll(systemCategories);
       });
     }
+  }
+
+  /// Создаёт одно базовое транспортное средство, если база пока пуста.
+  static Future<void> _initDefaultVehicle() async {
+    final count = await isar.vehicles.count();
+    if (count == 0) {
+      await isar.writeTxn(() async {
+        final vehicle = Vehicle()
+          ..name = 'Мой автомобиль'
+          ..plate = 'Не указано'
+          ..isDefault = true;
+        await isar.vehicles.put(vehicle);
+      });
+    }
+  }
+
+  // --- Управление транспортными средствами ---
+
+  /// Возвращает список всех транспортных средств.
+  static Future<List<Vehicle>> getAllVehicles() async {
+    return await isar.vehicles.where().findAll();
+  }
+
+  /// Добавляет новое транспортное средство.
+  static Future<void> addVehicle(String name, String? plate) async {
+    await isar.writeTxn(() async {
+      final vehicle = Vehicle()
+        ..name = name
+        ..plate = plate?.trim().isEmpty == true ? null : plate?.trim()
+        ..isDefault = false;
+      await isar.vehicles.put(vehicle);
+    });
+  }
+
+  /// Обновляет данные транспортного средства.
+  static Future<void> updateVehicle(Id id, String name, String? plate) async {
+    await isar.writeTxn(() async {
+      final vehicle = await isar.vehicles.get(id);
+      if (vehicle != null) {
+        vehicle.name = name;
+        vehicle.plate = plate?.trim().isEmpty == true ? null : plate?.trim();
+        await isar.vehicles.put(vehicle);
+      }
+    });
+  }
+
+  /// Удаляет транспортное средство, если оно не является единственным.
+  static Future<bool> deleteVehicle(Id id) async {
+    return await isar.writeTxn(() async {
+      final vehicles = await isar.vehicles.where().findAll();
+      if (vehicles.length <= 1) {
+        return false;
+      }
+      return await isar.vehicles.delete(id);
+    });
+  }
+
+  /// Возвращает текущее выбранное по умолчанию транспортное средство.
+  static Future<Vehicle?> getDefaultVehicle() async {
+    return await isar.vehicles.filter().isDefaultEqualTo(true).findFirst();
+  }
+
+  /// Устанавливает транспортное средство по умолчанию.
+  static Future<void> setDefaultVehicle(Id id) async {
+    await isar.writeTxn(() async {
+      final vehicles = await isar.vehicles.where().findAll();
+      for (final vehicle in vehicles) {
+        vehicle.isDefault = vehicle.id == id;
+        await isar.vehicles.put(vehicle);
+      }
+    });
   }
 
   // --- Управление категориями (CRUD) ---
@@ -88,7 +161,8 @@ class DatabaseService {
   static Future<void> saveExpense(Expense expense) async {
     await isar.writeTxn(() async {
       await isar.expenses.put(expense); // .put() сам поймет: если ID новый — создаст, если старый — обновит
-      await expense.category.save(); 
+      await expense.category.save();
+      await expense.vehicle.save();
     });
   }
 
@@ -104,6 +178,15 @@ class DatabaseService {
     return await isar.expenses.where().sortByDateDesc().findAll();
   }
 
+  /// Возвращает расходы за выбранный период и при необходимости только для одного транспорта.
+  static Future<List<Expense>> getExpensesForPeriod(DateTime start, DateTime end, {Id? vehicleId}) async {
+    var query = isar.expenses.filter().dateBetween(start, end, includeLower: true, includeUpper: true);
+    if (vehicleId != null) {
+      query = query.vehicle((q) => q.idEqualTo(vehicleId));
+    }
+    return await query.sortByDateDesc().findAll();
+  }
+
   // --- Контроль пробега ---
 
   /// Возвращает максимальный пробег из существующих записей, если он есть.
@@ -114,9 +197,9 @@ class DatabaseService {
 
   // --- Аналитика расходов ---
 
-  /// Собирает суммарные расходы по категориям начиная с указанной даты.
-  static Future<Map<String, double>> getAnalyticsForPeriod(DateTime start) async {
-    final expenses = await isar.expenses.filter().dateGreaterThan(start).findAll();
+  /// Собирает суммарные расходы по категориям за указанный период.
+  static Future<Map<String, double>> getAnalyticsForPeriod(DateTime start, DateTime end, {Id? vehicleId}) async {
+    final expenses = await getExpensesForPeriod(start, end, vehicleId: vehicleId);
     final Map<String, double> chartData = {};
 
     for (var expense in expenses) {

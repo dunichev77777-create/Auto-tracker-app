@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'analytics_screen.dart';
 import 'maintenance_settings_screen.dart';
 import 'reference_items_screen.dart';
+import 'vehicle_management_screen.dart';
 
 /// Точка входа приложения.
 /// Инициализирует базу данных и запускает корневой виджет.
@@ -23,7 +24,7 @@ class MyCarApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'mycar',
+      title: 'Auto tracker',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueGrey),
@@ -169,6 +170,15 @@ class _MainScreenState extends State<MainScreen> {
               onTap: () async {
                 Navigator.pop(context);
                 await Navigator.push(context, MaterialPageRoute(builder: (context) => const MaintenanceSettingsScreen()));
+                _refreshData();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.directions_car_outlined),
+              title: const Text('Транспортные средства'),
+              onTap: () async {
+                Navigator.pop(context);
+                await Navigator.push(context, MaterialPageRoute(builder: (context) => const VehicleManagementScreen()));
                 _refreshData();
               },
             ),

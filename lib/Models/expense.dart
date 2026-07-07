@@ -1,4 +1,5 @@
 import 'package:isar/isar.dart';
+import 'vehicle.dart';
 
 part 'expense.g.dart';
 
@@ -34,6 +35,9 @@ class Expense {
 
   /// Связь с категорией расхода.
   final category = IsarLink<ExpenseCategory>();
+
+  /// Связь с транспортным средством, к которому относится запись.
+  final vehicle = IsarLink<Vehicle>();
 
   /// Количество литров топлива для заправок.
   double? liters;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'database_service.dart';
 import 'Models/expense.dart';
+import 'Models/vehicle.dart';
 
 /// Экран добавления новой записи или редактирования существующей.
 class AddExpenseScreen extends StatefulWidget {
@@ -22,8 +23,12 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
   /// Доступные категории расходов из базы.
   List<ExpenseCategory> _categories = [];
+  /// Доступные транспортные средства из базы.
+  List<Vehicle> _vehicles = [];
   /// Текущая выбранная категория.
   ExpenseCategory? _selectedCategory;
+  /// Текущее выбранное транспортное средство.
+  Vehicle? _selectedVehicle;
   /// Дата записи, которую пользователь может изменить.
   DateTime _selectedDate = DateTime.now();
   /// Флаг загрузки данных перед отображением формы.
@@ -45,6 +50,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   /// в режиме создания — выбирается категория по умолчанию и берётся последний пробег.
   Future<void> _loadInitialData() async {
     final categories = await DatabaseService.getAllCategories();
+    final vehicles = await DatabaseService.getAllVehicles();
+    final defaultVehicle = await DatabaseService.getDefaultVehicle();
     
     if (_isEditing) {
       // Режим РЕДАКТИРОВАНИЯ: заполняем поля данными из переданного расхода
@@ -58,12 +65,19 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       if (!currentExpense.category.isLoaded) {
         await currentExpense.category.load();
       }
+      if (!currentExpense.vehicle.isLoaded) {
+        await currentExpense.vehicle.load();
+      }
 
       setState(() {
         _categories = categories;
         _selectedCategory = categories.firstWhere(
           (c) => c.id == currentExpense.category.value?.id,
           orElse: () => categories.first,
+        );
+        _selectedVehicle = vehicles.firstWhere(
+          (vehicle) => vehicle.id == currentExpense.vehicle.value?.id,
+          orElse: () => vehicles.isNotEmpty ? vehicles.first : Vehicle(),
         );
         _selectedDate = currentExpense.date;
         _isLoading = false;
@@ -73,6 +87,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       final lastOdometer = await DatabaseService.getLastOdometer();
       setState(() {
         _categories = categories;
+        _vehicles = vehicles;
+        _selectedVehicle = vehicles.firstWhere(
+          (vehicle) => vehicle.id == defaultVehicle?.id,
+          orElse: () => vehicles.isNotEmpty ? vehicles.first : Vehicle(),
+        );
         _selectedCategory = categories.firstWhere(
           (c) => c.name == 'Заправка',
           orElse: () => categories.isNotEmpty ? categories.first : ExpenseCategory(),
@@ -246,6 +265,24 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             ),
             const SizedBox(height: 16),
 
+            // Выбор транспортного средства для текущей записи.
+            DropdownButtonFormField<Vehicle>(
+              initialValue: _selectedVehicle,
+              decoration: const InputDecoration(labelText: 'Транспортное средство'),
+              items: _vehicles.map((Vehicle vehicle) {
+                return DropdownMenuItem<Vehicle>(
+                  value: vehicle,
+                  child: Text(vehicle.plate != null && vehicle.plate!.isNotEmpty ? '${vehicle.name} • ${vehicle.plate}' : vehicle.name),
+                );
+              }).toList(),
+              onChanged: (Vehicle? newValue) {
+                setState(() {
+                  _selectedVehicle = newValue;
+                });
+              },
+            ),
+            const SizedBox(height: 16),
+
             // Для топлива показываем отдельное поле количества литров.
             if (_selectedCategory?.name == 'Заправка') ...[
               TextField(
@@ -336,6 +373,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   ..comment = _commentController.text.isEmpty ? null : _commentController.text;
 
                 expense.category.value = _selectedCategory;
+                expense.vehicle.value = _selectedVehicle;
 
                 await DatabaseService.saveExpense(expense);
 

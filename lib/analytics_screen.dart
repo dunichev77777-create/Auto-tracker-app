@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'database_service.dart';
+import 'Models/vehicle.dart';
 
 /// Экран аналитики расходов.
 /// Показывает суммарные траты за выбранный период и распределение по категориям.
@@ -15,6 +17,12 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
   late TabController _tabController;
   /// Суммы расходов по категориям для текущего периода.
   Map<String, double> _chartData = {};
+  /// Текущий выбранный период.
+  DateTime _startDate = DateTime.now().subtract(const Duration(days: 7));
+  DateTime _endDate = DateTime.now();
+  /// Транспортное средство, по которому фильтруется аналитика.
+  Vehicle? _selectedVehicle;
+  List<Vehicle> _vehicles = [];
   /// Флаг загрузки данных аналитики.
   bool _isLoading = true;
   /// Общая сумма расходов за выбранный период.
@@ -25,7 +33,17 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(_handleTabSelection);
-    _loadAnalytics(0); // По умолчанию загружаем Неделю
+    _loadInitialData();
+  }
+
+  Future<void> _loadInitialData() async {
+    final vehicles = await DatabaseService.getAllVehicles();
+    final defaultVehicle = await DatabaseService.getDefaultVehicle();
+    setState(() {
+      _vehicles = vehicles;
+      _selectedVehicle = defaultVehicle;
+    });
+    await _loadAnalytics(0);
   }
 
   /// Перезагружает аналитику при смене вкладки.
@@ -55,9 +73,42 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
         break;
     }
 
-    final data = await DatabaseService.getAnalyticsForPeriod(startDate);
+    _startDate = startDate;
+    _endDate = now;
+
+    final data = await DatabaseService.getAnalyticsForPeriod(startDate, now, vehicleId: _selectedVehicle?.id);
     final total = data.values.fold<double>(0.0, (sum, val) => sum + val);
 
+    setState(() {
+      _chartData = data;
+      _totalSum = total;
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _showCustomPeriodDialog() async {
+    DateTimeRange? pickedRange = DateTimeRange(start: _startDate, end: _endDate);
+    final range = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now().add(const Duration(days: 3650)),
+      initialDateRange: pickedRange,
+      locale: const Locale('ru', 'RU'),
+    );
+
+    if (range != null) {
+      setState(() {
+        _startDate = range.start;
+        _endDate = range.end;
+      });
+      await _loadAnalyticsForCustomRange();
+    }
+  }
+
+  Future<void> _loadAnalyticsForCustomRange() async {
+    setState(() => _isLoading = true);
+    final data = await DatabaseService.getAnalyticsForPeriod(_startDate, _endDate, vehicleId: _selectedVehicle?.id);
+    final total = data.values.fold<double>(0.0, (sum, val) => sum + val);
     setState(() {
       _chartData = data;
       _totalSum = total;
@@ -80,6 +131,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
         title: const Text('Аналитика расходов'),
         backgroundColor: Colors.blueGrey[900],
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.date_range),
+            tooltip: 'Выбрать период вручную',
+            onPressed: _showCustomPeriodDialog,
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           labelColor: Colors.white,
@@ -106,6 +164,32 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: DropdownButtonFormField<Vehicle>(
+                              initialValue: _selectedVehicle,
+                              decoration: const InputDecoration(labelText: 'Транспорт'),
+                              items: _vehicles.map((Vehicle vehicle) {
+                                return DropdownMenuItem<Vehicle>(
+                                  value: vehicle,
+                                  child: Text(vehicle.plate != null && vehicle.plate!.isNotEmpty ? '${vehicle.name} • ${vehicle.plate}' : vehicle.name),
+                                );
+                              }).toList(),
+                              onChanged: (Vehicle? value) async {
+                                setState(() => _selectedVehicle = value);
+                                await _loadAnalyticsForCustomRange();
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Период: ${DateFormat('dd.MM.yyyy').format(_startDate)} — ${DateFormat('dd.MM.yyyy').format(_endDate)}',
+                        style: TextStyle(color: Colors.grey[700]),
+                      ),
+                      const SizedBox(height: 12),
                       // Суммарная карточка за период
                       Card(
                         color: Colors.white,

@@ -682,6 +682,12 @@ const ExpenseSchema = CollectionSchema(
       name: r'category',
       target: r'ExpenseCategory',
       single: true,
+    ),
+    r'vehicle': LinkSchema(
+      id: 7454132528866952750,
+      name: r'vehicle',
+      target: r'Vehicle',
+      single: true,
     )
   },
   embeddedSchemas: {},
@@ -762,13 +768,14 @@ Id _expenseGetId(Expense object) {
 }
 
 List<IsarLinkBase<dynamic>> _expenseGetLinks(Expense object) {
-  return [object.category];
+  return [object.category, object.vehicle];
 }
 
 void _expenseAttach(IsarCollection<dynamic> col, Id id, Expense object) {
   object.id = id;
   object.category
       .attach(col, col.isar.collection<ExpenseCategory>(), r'category', id);
+  object.vehicle.attach(col, col.isar.collection<Vehicle>(), r'vehicle', id);
 }
 
 extension ExpenseQueryWhereSort on QueryBuilder<Expense, Expense, QWhere> {
@@ -1405,6 +1412,19 @@ extension ExpenseQueryLinks
   QueryBuilder<Expense, Expense, QAfterFilterCondition> categoryIsNull() {
     return QueryBuilder.apply(this, (query) {
       return query.linkLength(r'category', 0, true, 0, true);
+    });
+  }
+
+  QueryBuilder<Expense, Expense, QAfterFilterCondition> vehicle(
+      FilterQuery<Vehicle> q) {
+    return QueryBuilder.apply(this, (query) {
+      return query.link(q, r'vehicle');
+    });
+  }
+
+  QueryBuilder<Expense, Expense, QAfterFilterCondition> vehicleIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.linkLength(r'vehicle', 0, true, 0, true);
     });
   }
 }
