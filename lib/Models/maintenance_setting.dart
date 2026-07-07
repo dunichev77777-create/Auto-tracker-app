@@ -22,4 +22,8 @@ class MaintenanceSetting {
 
   /// Дата последнего изменения или замены.
   late DateTime lastChangedDate;
+
+  /// Показывать ли правило на главном экране мониторинга ТО.
+  /// Значение по умолчанию false, чтобы старые записи из базы не ломали запуск.
+  bool showOnMainScreen = false;
 }

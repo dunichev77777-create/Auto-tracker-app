@@ -95,7 +95,8 @@ class _MaintenanceSettingsScreenState extends State<MaintenanceSettingsScreen> {
                 ..title = title
                 ..intervalKm = interval
                 ..lastChangedOdometer = lastChanged
-                ..lastChangedDate = DateTime.now();
+                ..lastChangedDate = DateTime.now()
+                ..showOnMainScreen = false;
 
               await DatabaseService.addMaintenanceSetting(newSetting);
               if (!context.mounted) return;
@@ -148,7 +149,7 @@ class _MaintenanceSettingsScreenState extends State<MaintenanceSettingsScreen> {
               final interval = int.tryParse(intervalController.text) ?? setting.intervalKm;
               final lastChanged = int.tryParse(lastChangedController.text) ?? setting.lastChangedOdometer;
 
-              await DatabaseService.updateMaintenanceSetting(setting.id, interval, lastChanged);
+              await DatabaseService.updateMaintenanceSetting(setting.id, interval, lastChanged, showOnMainScreen: setting.showOnMainScreen);
               if (!context.mounted) return;
               Navigator.pop(context);
               _loadSettings();
@@ -196,7 +197,27 @@ class _MaintenanceSettingsScreenState extends State<MaintenanceSettingsScreen> {
                       'Интервал: ${setting.intervalKm} км\nПосл. замена: ${setting.lastChangedOdometer} км',
                     ),
                     isThreeLine: true,
-                    trailing: const Icon(Icons.edit, color: Colors.blueGrey),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: Icon(
+                            setting.showOnMainScreen ? Icons.star : Icons.star_border,
+                            color: setting.showOnMainScreen ? Colors.amber : Colors.grey,
+                          ),
+                          onPressed: () async {
+                            await DatabaseService.updateMaintenanceSetting(
+                              setting.id,
+                              setting.intervalKm,
+                              setting.lastChangedOdometer,
+                              showOnMainScreen: !setting.showOnMainScreen,
+                            );
+                            _loadSettings();
+                          },
+                        ),
+                        const Icon(Icons.edit, color: Colors.blueGrey),
+                      ],
+                    ),
                     onTap: () => _showEditDialog(setting),
                   ),
                 );

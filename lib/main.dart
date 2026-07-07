@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'add_expense_screen.dart';
 import 'database_service.dart';
 import 'Models/expense.dart';
 import 'Models/maintenance_setting.dart';
+import 'Models/vehicle.dart';
 import 'package:intl/intl.dart';
 import 'analytics_screen.dart';
 import 'maintenance_settings_screen.dart';
 import 'reference_items_screen.dart';
 import 'vehicle_management_screen.dart';
+import 'vehicle_selection_helper.dart';
 
 /// Точка входа приложения.
 /// Инициализирует базу данных и запускает корневой виджет.
@@ -26,6 +29,15 @@ class MyCarApp extends StatelessWidget {
     return MaterialApp(
       title: 'Auto tracker',
       debugShowCheckedModeBanner: false,
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('ru', 'RU'),
+        Locale('en', 'US'),
+      ],
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueGrey),
         useMaterial3: true,
@@ -45,6 +57,8 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   bool _isInitializing = true;
+  Vehicle? _selectedVehicle;
+  List<Vehicle> _vehicles = [];
 
   @override
   void initState() {
@@ -54,15 +68,33 @@ class _MainScreenState extends State<MainScreen> {
 
   Future<void> _initializeData() async {
     await DatabaseService.init();
+    final vehicles = await DatabaseService.getAllVehicles();
+    final defaultVehicle = await DatabaseService.getDefaultVehicle();
     if (!mounted) return;
     setState(() {
+      _vehicles = vehicles;
+      _selectedVehicle = resolveSelectedVehicle(
+        vehicles: vehicles,
+        currentSelection: _selectedVehicle,
+        defaultVehicle: defaultVehicle,
+      );
       _isInitializing = false;
     });
   }
 
   /// Перерисовывает экран после возврата с дочернего экрана.
-  void _refreshData() {
-    setState(() {});
+  Future<void> _refreshData() async {
+    final vehicles = await DatabaseService.getAllVehicles();
+    final defaultVehicle = await DatabaseService.getDefaultVehicle();
+    if (!mounted) return;
+    setState(() {
+      _vehicles = vehicles;
+      _selectedVehicle = resolveSelectedVehicle(
+        vehicles: vehicles,
+        currentSelection: _selectedVehicle,
+        defaultVehicle: defaultVehicle,
+      );
+    });
   }
 
   /// Формирует карточку элемента обслуживания ТО.
@@ -223,10 +255,13 @@ class _MainScreenState extends State<MainScreen> {
           }
 
           final expenses = expenseSnapshot.data ?? [];
-          final totalExpenses = expenses.fold<double>(0.0, (sum, item) => sum + item.amount);
+          final filteredExpenses = _selectedVehicle == null
+              ? expenses
+              : expenses.where((expense) => expense.vehicle.value?.id == _selectedVehicle!.id).toList();
+          final totalExpenses = filteredExpenses.fold<double>(0.0, (sum, item) => sum + item.amount);
           
-          final currentOdometer = expenses.isNotEmpty 
-              ? expenses.map((e) => e.odometer).reduce((a, b) => a > b ? a : b) 
+          final currentOdometer = filteredExpenses.isNotEmpty 
+              ? filteredExpenses.map((e) => e.odometer).reduce((a, b) => a > b ? a : b) 
               : 0;
 
           return Padding(
@@ -234,6 +269,32 @@ class _MainScreenState extends State<MainScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<Vehicle?>(
+                        initialValue: _selectedVehicle,
+                        decoration: const InputDecoration(labelText: 'Транспорт'),
+                        items: [
+                          const DropdownMenuItem<Vehicle?>(value: null, child: Text('Все')),
+                          ..._vehicles.map((Vehicle vehicle) {
+                            return DropdownMenuItem<Vehicle?>(
+                              value: vehicle,
+                              child: Text(vehicle.plate != null && vehicle.plate!.isNotEmpty ? '${vehicle.name} • ${vehicle.plate}' : vehicle.name),
+                            );
+                          }),
+                        ],
+                        onChanged: (Vehicle? value) {
+                          setState(() {
+                            _selectedVehicle = value;
+                          });
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
                 // Виджет Общих Расходов
                 InkWell(
                   onTap: () async {
@@ -293,7 +354,7 @@ class _MainScreenState extends State<MainScreen> {
                   future: DatabaseService.getAllMaintenanceSettings(),
                   builder: (context, settingsSnapshot) {
                     if (!settingsSnapshot.hasData) return const SizedBox(height: 110);
-                    final settings = settingsSnapshot.data!;
+                    final settings = settingsSnapshot.data!.where((rule) => rule.showOnMainScreen).toList();
 
                     return SizedBox(
                       height: 110, // Увеличили высоту для безопасности
@@ -318,7 +379,7 @@ class _MainScreenState extends State<MainScreen> {
                 const SizedBox(height: 10),
 
                 Expanded(
-                  child: expenses.isEmpty
+                  child: filteredExpenses.isEmpty
                       ? const Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -334,10 +395,11 @@ class _MainScreenState extends State<MainScreen> {
                           ),
                         )
                       : ListView.builder(
-                          itemCount: expenses.length,
+                          itemCount: filteredExpenses.length,
                           itemBuilder: (context, index) {
-                            final expense = expenses[index];
+                            final expense = filteredExpenses[index];
                             final categoryName = expense.category.value?.name ?? 'Без категории';
+                            final vehicleName = expense.vehicle.value?.name ?? 'Транспорт';
                             final dateFormatted = DateFormat('dd.MM.yyyy').format(expense.date);
 
                             return InkWell(
@@ -362,7 +424,7 @@ class _MainScreenState extends State<MainScreen> {
                                     ),
                                   ),
                                   title: Text(categoryName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                  subtitle: Text('$dateFormatted • ${expense.odometer} км'),
+                                  subtitle: Text('$dateFormatted • ${expense.odometer} км • $vehicleName'),
                                   trailing: Text(
                                     '-${expense.amount.toStringAsFixed(1)} ₽',
                                     style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 16),

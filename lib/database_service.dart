@@ -180,7 +180,8 @@ class DatabaseService {
 
   /// Возвращает расходы за выбранный период и при необходимости только для одного транспорта.
   static Future<List<Expense>> getExpensesForPeriod(DateTime start, DateTime end, {Id? vehicleId}) async {
-    var query = isar.expenses.filter().dateBetween(start, end, includeLower: true, includeUpper: true);
+    final endInclusive = end.add(const Duration(days: 1));
+    var query = isar.expenses.filter().dateBetween(start, endInclusive, includeLower: true, includeUpper: true);
     if (vehicleId != null) {
       query = query.vehicle((q) => q.idEqualTo(vehicleId));
     }
@@ -218,31 +219,35 @@ class DatabaseService {
   /// Возвращает список настроек обслуживания; при пустой базе создаёт дефолтные значения.
   static Future<List<MaintenanceSetting>> getAllMaintenanceSettings() async {
     final settings = await isar.maintenanceSettings.where().findAll();
-    
-    // Если база пуста (первый запуск), заполним её дефолтными значениями
+
+    // Если база пуста (первый запуск), заполним её дефолтными значениями.
     if (settings.isEmpty) {
       final defaultSettings = [
         MaintenanceSetting()
           ..title = 'Моторное масло'
           ..intervalKm = 10000
           ..lastChangedOdometer = 0
-          ..lastChangedDate = DateTime.now(),
+          ..lastChangedDate = DateTime.now()
+          ..showOnMainScreen = true,
         MaintenanceSetting()
           ..title = 'Свечи зажигания'
           ..intervalKm = 30000
           ..lastChangedOdometer = 0
-          ..lastChangedDate = DateTime.now(),
+          ..lastChangedDate = DateTime.now()
+          ..showOnMainScreen = true,
         MaintenanceSetting()
           ..title = 'Тормозная жидкость'
           ..intervalKm = 40000
           ..lastChangedOdometer = 0
-          ..lastChangedDate = DateTime.now(),
+          ..lastChangedDate = DateTime.now()
+          ..showOnMainScreen = false,
       ];
       await isar.writeTxn(() async {
         await isar.maintenanceSettings.putAll(defaultSettings);
       });
       return defaultSettings;
     }
+
     return settings;
   }
 
@@ -254,12 +259,15 @@ class DatabaseService {
   }
 
   /// Обновляет интервал обслуживания и пробег последней замены для выбранного правила.
-  static Future<void> updateMaintenanceSetting(Id id, int interval, int lastChanged) async {
+  static Future<void> updateMaintenanceSetting(Id id, int interval, int lastChanged, {bool? showOnMainScreen}) async {
     await isar.writeTxn(() async {
       final setting = await isar.maintenanceSettings.get(id);
       if (setting != null) {
         setting.intervalKm = interval;
         setting.lastChangedOdometer = lastChanged;
+        if (showOnMainScreen != null) {
+          setting.showOnMainScreen = showOnMainScreen;
+        }
         await isar.maintenanceSettings.put(setting);
       }
     });

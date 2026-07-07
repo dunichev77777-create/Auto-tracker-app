@@ -38,8 +38,13 @@ const MaintenanceSettingSchema = CollectionSchema(
       name: r'lastChangedOdometer',
       type: IsarType.long,
     ),
-    r'title': PropertySchema(
+    r'showOnMainScreen': PropertySchema(
       id: 4,
+      name: r'showOnMainScreen',
+      type: IsarType.bool,
+    ),
+    r'title': PropertySchema(
+      id: 5,
       name: r'title',
       type: IsarType.string,
     )
@@ -78,7 +83,8 @@ void _maintenanceSettingSerialize(
   writer.writeLong(offsets[1], object.intervalMonths);
   writer.writeDateTime(offsets[2], object.lastChangedDate);
   writer.writeLong(offsets[3], object.lastChangedOdometer);
-  writer.writeString(offsets[4], object.title);
+  writer.writeBool(offsets[4], object.showOnMainScreen);
+  writer.writeString(offsets[5], object.title);
 }
 
 MaintenanceSetting _maintenanceSettingDeserialize(
@@ -93,7 +99,8 @@ MaintenanceSetting _maintenanceSettingDeserialize(
   object.intervalMonths = reader.readLongOrNull(offsets[1]);
   object.lastChangedDate = reader.readDateTime(offsets[2]);
   object.lastChangedOdometer = reader.readLong(offsets[3]);
-  object.title = reader.readString(offsets[4]);
+  object.showOnMainScreen = reader.readBool(offsets[4]);
+  object.title = reader.readString(offsets[5]);
   return object;
 }
 
@@ -113,6 +120,8 @@ P _maintenanceSettingDeserializeProp<P>(
     case 3:
       return (reader.readLong(offset)) as P;
     case 4:
+      return (reader.readBool(offset)) as P;
+    case 5:
       return (reader.readString(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -514,6 +523,16 @@ extension MaintenanceSettingQueryFilter
   }
 
   QueryBuilder<MaintenanceSetting, MaintenanceSetting, QAfterFilterCondition>
+      showOnMainScreenEqualTo(bool value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'showOnMainScreen',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<MaintenanceSetting, MaintenanceSetting, QAfterFilterCondition>
       titleEqualTo(
     String value, {
     bool caseSensitive = true,
@@ -715,6 +734,20 @@ extension MaintenanceSettingQuerySortBy
   }
 
   QueryBuilder<MaintenanceSetting, MaintenanceSetting, QAfterSortBy>
+      sortByShowOnMainScreen() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'showOnMainScreen', Sort.asc);
+    });
+  }
+
+  QueryBuilder<MaintenanceSetting, MaintenanceSetting, QAfterSortBy>
+      sortByShowOnMainScreenDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'showOnMainScreen', Sort.desc);
+    });
+  }
+
+  QueryBuilder<MaintenanceSetting, MaintenanceSetting, QAfterSortBy>
       sortByTitle() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'title', Sort.asc);
@@ -802,6 +835,20 @@ extension MaintenanceSettingQuerySortThenBy
   }
 
   QueryBuilder<MaintenanceSetting, MaintenanceSetting, QAfterSortBy>
+      thenByShowOnMainScreen() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'showOnMainScreen', Sort.asc);
+    });
+  }
+
+  QueryBuilder<MaintenanceSetting, MaintenanceSetting, QAfterSortBy>
+      thenByShowOnMainScreenDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'showOnMainScreen', Sort.desc);
+    });
+  }
+
+  QueryBuilder<MaintenanceSetting, MaintenanceSetting, QAfterSortBy>
       thenByTitle() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'title', Sort.asc);
@@ -847,6 +894,13 @@ extension MaintenanceSettingQueryWhereDistinct
   }
 
   QueryBuilder<MaintenanceSetting, MaintenanceSetting, QDistinct>
+      distinctByShowOnMainScreen() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'showOnMainScreen');
+    });
+  }
+
+  QueryBuilder<MaintenanceSetting, MaintenanceSetting, QDistinct>
       distinctByTitle({bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'title', caseSensitive: caseSensitive);
@@ -886,6 +940,13 @@ extension MaintenanceSettingQueryProperty
       lastChangedOdometerProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'lastChangedOdometer');
+    });
+  }
+
+  QueryBuilder<MaintenanceSetting, bool, QQueryOperations>
+      showOnMainScreenProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'showOnMainScreen');
     });
   }
 

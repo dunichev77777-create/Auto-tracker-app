@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'database_service.dart';
 import 'Models/vehicle.dart';
+import 'vehicle_selection_helper.dart';
 
 /// Экран аналитики расходов.
 /// Показывает суммарные траты за выбранный период и распределение по категориям.
@@ -41,7 +42,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
     final defaultVehicle = await DatabaseService.getDefaultVehicle();
     setState(() {
       _vehicles = vehicles;
-      _selectedVehicle = defaultVehicle;
+      _selectedVehicle = resolveSelectedVehicle(
+        vehicles: vehicles,
+        currentSelection: _selectedVehicle,
+        defaultVehicle: defaultVehicle,
+      );
     });
     await _loadAnalytics(0);
   }
@@ -87,7 +92,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
   }
 
   Future<void> _showCustomPeriodDialog() async {
-    DateTimeRange? pickedRange = DateTimeRange(start: _startDate, end: _endDate);
+    final pickedRange = DateTimeRange(start: _startDate, end: _endDate);
     final range = await showDateRangePicker(
       context: context,
       firstDate: DateTime(2000),
@@ -97,9 +102,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
     );
 
     if (range != null) {
+      if (!mounted) return;
       setState(() {
-        _startDate = range.start;
-        _endDate = range.end;
+        _startDate = DateTime(range.start.year, range.start.month, range.start.day);
+        _endDate = DateTime(range.end.year, range.end.month, range.end.day, 23, 59, 59);
       });
       await _loadAnalyticsForCustomRange();
     }
@@ -167,15 +173,18 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
                       Row(
                         children: [
                           Expanded(
-                            child: DropdownButtonFormField<Vehicle>(
+                            child: DropdownButtonFormField<Vehicle?>(
                               initialValue: _selectedVehicle,
                               decoration: const InputDecoration(labelText: 'Транспорт'),
-                              items: _vehicles.map((Vehicle vehicle) {
-                                return DropdownMenuItem<Vehicle>(
-                                  value: vehicle,
-                                  child: Text(vehicle.plate != null && vehicle.plate!.isNotEmpty ? '${vehicle.name} • ${vehicle.plate}' : vehicle.name),
-                                );
-                              }).toList(),
+                              items: [
+                                const DropdownMenuItem<Vehicle?>(value: null, child: Text('Все')),
+                                ..._vehicles.map((Vehicle vehicle) {
+                                  return DropdownMenuItem<Vehicle?>(
+                                    value: vehicle,
+                                    child: Text(vehicle.plate != null && vehicle.plate!.isNotEmpty ? '${vehicle.name} • ${vehicle.plate}' : vehicle.name),
+                                  );
+                                }),
+                              ],
                               onChanged: (Vehicle? value) async {
                                 setState(() => _selectedVehicle = value);
                                 await _loadAnalyticsForCustomRange();
