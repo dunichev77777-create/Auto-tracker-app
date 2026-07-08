@@ -363,6 +363,11 @@ class _MainScreenState extends State<MainScreen> {
                         return const SizedBox(height: 110);
                       }
 
+                      // Calculate effective odometer: use max from expenses, or max from maintenance settings if no expenses
+                      final effectiveOdometer = currentOdometer > 0 
+                          ? currentOdometer 
+                          : displaySettings.map((s) => s.lastChangedOdometer).reduce((a, b) => a > b ? a : b);
+
                       return SizedBox(
                         height: 110,
                         child: ListView.builder(
@@ -370,7 +375,7 @@ class _MainScreenState extends State<MainScreen> {
                           itemCount: displaySettings.length,
                           itemBuilder: (context, index) {
                             final rule = displaySettings[index];
-                            final int remaining = (rule.lastChangedOdometer + rule.intervalKm) - currentOdometer;
+                            final int remaining = (rule.lastChangedOdometer + rule.intervalKm) - effectiveOdometer;
                             return _buildMaintenanceItem(rule.title, remaining, rule.intervalKm);
                           },
                         ),

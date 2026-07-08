@@ -25,14 +25,16 @@ class _MaintenanceSettingsScreenState extends State<MaintenanceSettingsScreen> {
   /// Сообщение об ошибке при сохранении.
   String? _errorMessage;
 
+  /// Инициализация состояния виджета.
+  /// При открытии экрана сразу загружаем актуальные настройки из базы.
   @override
   void initState() {
     super.initState();
-    // При открытии экрана сразу загружаем актуальные настройки из базы.
     _loadSettings();
   }
 
   /// Загружает список правил обслуживания из сервиса базы данных.
+  /// Обновляет состояние экрана с актуальными данными.
   Future<void> _loadSettings() async {
     setState(() => _isLoading = true);
 
@@ -74,12 +76,14 @@ class _MaintenanceSettingsScreenState extends State<MaintenanceSettingsScreen> {
   }
 
   /// Показывает диалог создания нового правила обслуживания.
+  /// Пользователь может ввести название, интервал замены, пробег последней замены и выбрать транспортное средство.
   Future<void> _showAddDialog() async {
     final titleController = TextEditingController();
     final intervalController = TextEditingController();
     final lastChangedController = TextEditingController();
     Vehicle? addVehicle = _vehicles.isNotEmpty ? _vehicles.first : null;
 
+    // Показываем диалоговое окно с формой для создания нового правила
     await showDialog(
       context: context,
       builder: (context) {
@@ -87,100 +91,110 @@ class _MaintenanceSettingsScreenState extends State<MaintenanceSettingsScreen> {
           builder: (context, setDialogState) {
             return AlertDialog(
               title: const Text('Новое правило ТО'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: titleController,
-                    decoration: const InputDecoration(
-                      labelText: 'Название',
-                      prefixIcon: Icon(Icons.title),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: titleController,
+                      decoration: const InputDecoration(
+                        labelText: 'Название',
+                        prefixIcon: Icon(Icons.title),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: intervalController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Интервал замены (км)',
-                      prefixIcon: Icon(Icons.loop),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: intervalController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Интервал замены (км)',
+                        prefixIcon: Icon(Icons.loop),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: lastChangedController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Пробег последней замены (км)',
-                      prefixIcon: Icon(Icons.speed),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: lastChangedController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Пробег последней замены (км)',
+                        prefixIcon: Icon(Icons.speed),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<Vehicle>(
-                    value: addVehicle,
-                    decoration: const InputDecoration(
-                      labelText: 'Транспорт',
-                      prefixIcon: Icon(Icons.directions_car),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<Vehicle>(
+                      value: addVehicle,
+                      decoration: const InputDecoration(
+                        labelText: 'Транспорт',
+                        prefixIcon: Icon(Icons.directions_car),
+                      ),
+                      items: _vehicles.map((Vehicle vehicle) {
+                        return DropdownMenuItem<Vehicle>(
+                          value: vehicle,
+                          child: Text(vehicle.plate != null && vehicle.plate!.isNotEmpty ? '${vehicle.name} • ${vehicle.plate}' : vehicle.name),
+                        );
+                      }).toList(),
+                      onChanged: (Vehicle? value) {
+                        setDialogState(() {
+                          addVehicle = value;
+                        });
+                      },
                     ),
-                    items: _vehicles.map((Vehicle vehicle) {
-                      return DropdownMenuItem<Vehicle>(
-                        value: vehicle,
-                        child: Text(vehicle.plate != null && vehicle.plate!.isNotEmpty ? '${vehicle.name} • ${vehicle.plate}' : vehicle.name),
-                      );
-                    }).toList(),
-                    onChanged: (Vehicle? value) {
-                      setDialogState(() {
-                        addVehicle = value;
-                      });
-                    },
-                  ),
-                ],
+                  ],
+                ),
               ),
               actions: [
-                TextButton(onPressed: () => Navigator.pop(context), child: const Text('Отмена')),
-                ElevatedButton(
-                  onPressed: () async {
-                    final title = titleController.text.trim();
-                    final interval = int.tryParse(intervalController.text);
-                    final lastChanged = int.tryParse(lastChangedController.text);
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    // Кнопка отмены создания правила
+                    TextButton(onPressed: () => Navigator.pop(context), child: const Text('Отмена')),
+                    const SizedBox(width: 8),
+                    // Кнопка подтверждения создания правила
+                    ElevatedButton(
+                      onPressed: () async {
+                        final title = titleController.text.trim();
+                        final interval = int.tryParse(intervalController.text);
+                        final lastChanged = int.tryParse(lastChangedController.text);
 
-                    if (title.isEmpty || interval == null || lastChanged == null) {
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Заполните все поля корректно')),
-                      );
-                      return;
-                    }
+                        if (title.isEmpty || interval == null || lastChanged == null) {
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Заполните все поля корректно')),
+                          );
+                          return;
+                        }
 
-                    try {
-                      final newSetting = MaintenanceSetting()
-                        ..title = title
-                        ..intervalKm = interval
-                        ..lastChangedOdometer = lastChanged
-                        ..lastChangedDate = DateTime.now()
-                        ..showOnMainScreen = true;
+                        try {
+                          final newSetting = MaintenanceSetting()
+                            ..title = title
+                            ..intervalKm = interval
+                            ..lastChangedOdometer = lastChanged
+                            ..lastChangedDate = DateTime.now()
+                            ..showOnMainScreen = true;
 
-                      final added = await DatabaseService.addMaintenanceSetting(
-                        newSetting,
-                        vehicleId: addVehicle?.id,
-                      );
-                      if (!context.mounted) return;
-                      if (!added) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Не удалось сохранить правило ТО')),
-                        );
-                        return;
-                      }
-                      Navigator.pop(context);
-                      await _loadSettings();
-                    } catch (error) {
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Ошибка при создании правила ТО: $error')),
-                      );
-                    }
-                  },
-                  child: const Text('Добавить'),
+                          final added = await DatabaseService.addMaintenanceSetting(
+                            newSetting,
+                            vehicleId: addVehicle?.id,
+                          );
+                          if (!context.mounted) return;
+                          if (!added) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Не удалось сохранить правило ТО')),
+                            );
+                            return;
+                          }
+                          Navigator.pop(context);
+                          await _loadSettings();
+                        } catch (error) {
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Ошибка при создании правила ТО: $error')),
+                          );
+                        }
+                      },
+                      child: const Text('Добавить'),
+                    ),
+                  ],
                 ),
               ],
             );
@@ -191,6 +205,8 @@ class _MaintenanceSettingsScreenState extends State<MaintenanceSettingsScreen> {
   }
 
   /// Показывает диалог редактирования одного правила обслуживания.
+  /// Пользователь может изменить интервал замены, пробег последней замены и привязку к транспортному средству.
+  /// Также позволяет удалить правило, если оно не является системным.
   void _showEditDialog(MaintenanceSetting setting) {
     final intervalController = TextEditingController(text: setting.intervalKm.toString());
     final lastChangedController = TextEditingController(text: setting.lastChangedOdometer.toString());
@@ -201,6 +217,7 @@ class _MaintenanceSettingsScreenState extends State<MaintenanceSettingsScreen> {
           )
         : null;
 
+    // Показываем диалоговое окно с формой для редактирования правила
     showDialog(
       context: context,
       builder: (context) {
@@ -208,76 +225,88 @@ class _MaintenanceSettingsScreenState extends State<MaintenanceSettingsScreen> {
           builder: (context, setDialogState) {
             return AlertDialog(
               title: Text('Регламент: ${setting.title}'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: intervalController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Интервал замены (км)',
-                      prefixIcon: Icon(Icons.loop),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: intervalController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Интервал замены (км)',
+                        prefixIcon: Icon(Icons.loop),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: lastChangedController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Пробег последней замены (км)',
-                      prefixIcon: Icon(Icons.speed),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: lastChangedController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Пробег последней замены (км)',
+                        prefixIcon: Icon(Icons.speed),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<Vehicle>(
-                    value: selectedVehicle,
-                    decoration: const InputDecoration(
-                      labelText: 'Транспорт',
-                      prefixIcon: Icon(Icons.directions_car),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<Vehicle>(
+                      value: selectedVehicle,
+                      decoration: const InputDecoration(
+                        labelText: 'Транспорт',
+                        prefixIcon: Icon(Icons.directions_car),
+                      ),
+                      items: _vehicles.map((Vehicle vehicle) {
+                        return DropdownMenuItem<Vehicle>(
+                          value: vehicle,
+                          child: Text(vehicle.plate != null && vehicle.plate!.isNotEmpty ? '${vehicle.name} • ${vehicle.plate}' : vehicle.name),
+                        );
+                      }).toList(),
+                      onChanged: (Vehicle? value) {
+                        setDialogState(() {
+                          selectedVehicle = value;
+                        });
+                      },
                     ),
-                    items: _vehicles.map((Vehicle vehicle) {
-                      return DropdownMenuItem<Vehicle>(
-                        value: vehicle,
-                        child: Text(vehicle.plate != null && vehicle.plate!.isNotEmpty ? '${vehicle.name} • ${vehicle.plate}' : vehicle.name),
-                      );
-                    }).toList(),
-                    onChanged: (Vehicle? value) {
-                      setDialogState(() {
-                        selectedVehicle = value;
-                      });
-                    },
-                  ),
-                ],
+                  ],
+                ),
               ),
               actions: [
-                 if (!setting.isSystem)
-                    TextButton(
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    // Кнопка удаления правила (показывается только для несистемных правил)
+                    if (!setting.isSystem)
+                      TextButton(
+                        onPressed: () async {
+                          await DatabaseService.deleteMaintenanceSetting(setting.id);
+                          if (!context.mounted) return;
+                          Navigator.pop(context);
+                          _loadSettings();
+                        },
+                        child: const Text('Удалить', style: TextStyle(color: Colors.red)),
+                    ),
+                    const SizedBox(width: 8),
+                    // Кнопка отмены редактирования
+                    TextButton(onPressed: () => Navigator.pop(context), child: const Text('Отмена')),
+                    const SizedBox(width: 8),
+                    // Кнопка сохранения изменений
+                    ElevatedButton(
                       onPressed: () async {
-                        await DatabaseService.deleteMaintenanceSetting(setting.id);
+                        final interval = int.tryParse(intervalController.text) ?? setting.intervalKm;
+                        final lastChanged = int.tryParse(lastChangedController.text) ?? setting.lastChangedOdometer;
+
+                        await DatabaseService.updateMaintenanceSetting(
+                          setting.id,
+                          interval,
+                          lastChanged,
+                          showOnMainScreen: setting.showOnMainScreen,
+                          vehicleId: selectedVehicle?.id,
+                        );
                         if (!context.mounted) return;
                         Navigator.pop(context);
-                       _loadSettings();
+                        _loadSettings();
                       },
-                      child: const Text('Удалить', style: TextStyle(color: Colors.red)),
-                  ),
-                TextButton(onPressed: () => Navigator.pop(context), child: const Text('Отмена')),
-                ElevatedButton(
-                  onPressed: () async {
-                    final interval = int.tryParse(intervalController.text) ?? setting.intervalKm;
-                    final lastChanged = int.tryParse(lastChangedController.text) ?? setting.lastChangedOdometer;
-
-                    await DatabaseService.updateMaintenanceSetting(
-                      setting.id,
-                      interval,
-                      lastChanged,
-                      showOnMainScreen: setting.showOnMainScreen,
-                      vehicleId: selectedVehicle?.id,
-                    );
-                    if (!context.mounted) return;
-                    Navigator.pop(context);
-                    _loadSettings();
-                  },
-                  child: const Text('Сохранить'),
+                      child: const Text('Сохранить'),
+                    ),
+                  ],
                 ),
               ],
             );
@@ -295,6 +324,7 @@ class _MaintenanceSettingsScreenState extends State<MaintenanceSettingsScreen> {
         backgroundColor: Colors.blueGrey[900],
         foregroundColor: Colors.white,
         actions: [
+          // Кнопка добавления нового правила ТО
           IconButton(
             icon: const Icon(Icons.add_circle_outline),
             onPressed: _showAddDialog,
@@ -354,6 +384,7 @@ class _MaintenanceSettingsScreenState extends State<MaintenanceSettingsScreen> {
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
+                                // Кнопка переключения отображения на главном экране (звезда)
                                 IconButton(
                                   icon: Icon(
                                     setting.showOnMainScreen ? Icons.star : Icons.star_border,
@@ -370,9 +401,11 @@ class _MaintenanceSettingsScreenState extends State<MaintenanceSettingsScreen> {
                                     _loadSettings();
                                   },
                                 ),
+                                // Иконка редактирования (нажатие на карточку также открывает редактирование)
                                 const Icon(Icons.edit, color: Colors.blueGrey),
                               ],
                             ),
+                            // При нажатии на карточку открываем диалог редактирования
                             onTap: () => _showEditDialog(setting),
                           ),
                         );

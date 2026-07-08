@@ -35,6 +35,10 @@ class MaintenanceSetting {
   /// Значение по умолчанию false, чтобы старые записи из базы не ломали запуск.
   bool showOnMainScreen = false;
 
+  /// Является ли правило системным (нельзя удалить пользователем).
+  /// Системные правила предустановлены приложением.
+  bool isSystem = false;
+
   bool matchesVehicleId(Id? targetVehicleId) {
     if (targetVehicleId == null) {
       return true;

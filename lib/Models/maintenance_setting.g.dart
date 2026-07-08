@@ -28,33 +28,38 @@ const MaintenanceSettingSchema = CollectionSchema(
       name: r'intervalMonths',
       type: IsarType.long,
     ),
-    r'lastChangedDate': PropertySchema(
+    r'isSystem': PropertySchema(
       id: 2,
+      name: r'isSystem',
+      type: IsarType.bool,
+    ),
+    r'lastChangedDate': PropertySchema(
+      id: 3,
       name: r'lastChangedDate',
       type: IsarType.dateTime,
     ),
     r'lastChangedOdometer': PropertySchema(
-      id: 3,
+      id: 4,
       name: r'lastChangedOdometer',
       type: IsarType.long,
     ),
     r'showOnMainScreen': PropertySchema(
-      id: 4,
+      id: 5,
       name: r'showOnMainScreen',
       type: IsarType.bool,
     ),
     r'title': PropertySchema(
-      id: 5,
+      id: 6,
       name: r'title',
       type: IsarType.string,
     ),
     r'vehicleId': PropertySchema(
-      id: 6,
+      id: 7,
       name: r'vehicleId',
       type: IsarType.long,
     ),
     r'vehicleName': PropertySchema(
-      id: 7,
+      id: 8,
       name: r'vehicleName',
       type: IsarType.string,
     )
@@ -99,12 +104,13 @@ void _maintenanceSettingSerialize(
 ) {
   writer.writeLong(offsets[0], object.intervalKm);
   writer.writeLong(offsets[1], object.intervalMonths);
-  writer.writeDateTime(offsets[2], object.lastChangedDate);
-  writer.writeLong(offsets[3], object.lastChangedOdometer);
-  writer.writeBool(offsets[4], object.showOnMainScreen);
-  writer.writeString(offsets[5], object.title);
-  writer.writeLong(offsets[6], object.vehicleId);
-  writer.writeString(offsets[7], object.vehicleName);
+  writer.writeBool(offsets[2], object.isSystem);
+  writer.writeDateTime(offsets[3], object.lastChangedDate);
+  writer.writeLong(offsets[4], object.lastChangedOdometer);
+  writer.writeBool(offsets[5], object.showOnMainScreen);
+  writer.writeString(offsets[6], object.title);
+  writer.writeLong(offsets[7], object.vehicleId);
+  writer.writeString(offsets[8], object.vehicleName);
 }
 
 MaintenanceSetting _maintenanceSettingDeserialize(
@@ -117,11 +123,12 @@ MaintenanceSetting _maintenanceSettingDeserialize(
   object.id = id;
   object.intervalKm = reader.readLong(offsets[0]);
   object.intervalMonths = reader.readLongOrNull(offsets[1]);
-  object.lastChangedDate = reader.readDateTime(offsets[2]);
-  object.lastChangedOdometer = reader.readLong(offsets[3]);
-  object.showOnMainScreen = reader.readBool(offsets[4]);
-  object.title = reader.readString(offsets[5]);
-  object.vehicleId = reader.readLongOrNull(offsets[6]);
+  object.isSystem = reader.readBool(offsets[2]);
+  object.lastChangedDate = reader.readDateTime(offsets[3]);
+  object.lastChangedOdometer = reader.readLong(offsets[4]);
+  object.showOnMainScreen = reader.readBool(offsets[5]);
+  object.title = reader.readString(offsets[6]);
+  object.vehicleId = reader.readLongOrNull(offsets[7]);
   return object;
 }
 
@@ -137,16 +144,18 @@ P _maintenanceSettingDeserializeProp<P>(
     case 1:
       return (reader.readLongOrNull(offset)) as P;
     case 2:
-      return (reader.readDateTime(offset)) as P;
-    case 3:
-      return (reader.readLong(offset)) as P;
-    case 4:
       return (reader.readBool(offset)) as P;
+    case 3:
+      return (reader.readDateTime(offset)) as P;
+    case 4:
+      return (reader.readLong(offset)) as P;
     case 5:
-      return (reader.readString(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 6:
-      return (reader.readLongOrNull(offset)) as P;
+      return (reader.readString(offset)) as P;
     case 7:
+      return (reader.readLongOrNull(offset)) as P;
+    case 8:
       return (reader.readString(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -432,6 +441,16 @@ extension MaintenanceSettingQueryFilter
         includeLower: includeLower,
         upper: upper,
         includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<MaintenanceSetting, MaintenanceSetting, QAfterFilterCondition>
+      isSystemEqualTo(bool value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'isSystem',
+        value: value,
       ));
     });
   }
@@ -956,6 +975,20 @@ extension MaintenanceSettingQuerySortBy
   }
 
   QueryBuilder<MaintenanceSetting, MaintenanceSetting, QAfterSortBy>
+      sortByIsSystem() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isSystem', Sort.asc);
+    });
+  }
+
+  QueryBuilder<MaintenanceSetting, MaintenanceSetting, QAfterSortBy>
+      sortByIsSystemDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isSystem', Sort.desc);
+    });
+  }
+
+  QueryBuilder<MaintenanceSetting, MaintenanceSetting, QAfterSortBy>
       sortByLastChangedDate() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'lastChangedDate', Sort.asc);
@@ -1085,6 +1118,20 @@ extension MaintenanceSettingQuerySortThenBy
   }
 
   QueryBuilder<MaintenanceSetting, MaintenanceSetting, QAfterSortBy>
+      thenByIsSystem() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isSystem', Sort.asc);
+    });
+  }
+
+  QueryBuilder<MaintenanceSetting, MaintenanceSetting, QAfterSortBy>
+      thenByIsSystemDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isSystem', Sort.desc);
+    });
+  }
+
+  QueryBuilder<MaintenanceSetting, MaintenanceSetting, QAfterSortBy>
       thenByLastChangedDate() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'lastChangedDate', Sort.asc);
@@ -1186,6 +1233,13 @@ extension MaintenanceSettingQueryWhereDistinct
   }
 
   QueryBuilder<MaintenanceSetting, MaintenanceSetting, QDistinct>
+      distinctByIsSystem() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'isSystem');
+    });
+  }
+
+  QueryBuilder<MaintenanceSetting, MaintenanceSetting, QDistinct>
       distinctByLastChangedDate() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'lastChangedDate');
@@ -1246,6 +1300,12 @@ extension MaintenanceSettingQueryProperty
       intervalMonthsProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'intervalMonths');
+    });
+  }
+
+  QueryBuilder<MaintenanceSetting, bool, QQueryOperations> isSystemProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'isSystem');
     });
   }
 

@@ -32,7 +32,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(_handleTabSelection);
     _loadInitialData();
   }
@@ -54,7 +54,12 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
   /// Перезагружает аналитику при смене вкладки.
   void _handleTabSelection() {
     if (_tabController.indexIsChanging) {
-      _loadAnalytics(_tabController.index);
+      if (_tabController.index == 3) {
+        // Для вкладки "Период" открываем диалог выбора дат
+        _showCustomPeriodDialog();
+      } else {
+        _loadAnalytics(_tabController.index);
+      }
     }
   }
 
@@ -65,23 +70,33 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
 
     final now = DateTime.now();
     late DateTime startDate;
+    late DateTime endDate;
 
     switch (tabIndex) {
-      case 0: // Неделя
-        startDate = now.subtract(const Duration(days: 7));
+      case 0: // Неделя (понедельник - воскресенье)
+        final currentDay = now.weekday; // 1 = понедельник, 7 = воскресенье
+        final monday = now.subtract(Duration(days: currentDay - 1));
+        startDate = DateTime(monday.year, monday.month, monday.day);
+        endDate = DateTime(monday.year, monday.month, monday.day + 6, 23, 59, 59);
         break;
-      case 1: // Месяц
-        startDate = DateTime(now.year, now.month - 1, now.day);
+      case 1: // Месяц (с 1 по последний день)
+        startDate = DateTime(now.year, now.month, 1);
+        final lastDay = DateTime(now.year, now.month + 1, 0).day;
+        endDate = DateTime(now.year, now.month, lastDay, 23, 59, 59);
         break;
-      case 2: // Год
-        startDate = DateTime(now.year - 1, now.month, now.day);
+      case 2: // Год (с 1 января по 31 декабря)
+        startDate = DateTime(now.year, 1, 1);
+        endDate = DateTime(now.year, 12, 31, 23, 59, 59);
         break;
+      case 3: // Период - не обрабатываем здесь, вызывается через диалог
+        setState(() => _isLoading = false);
+        return;
     }
 
     _startDate = startDate;
-    _endDate = now;
+    _endDate = endDate;
 
-    final data = await DatabaseService.getAnalyticsForPeriod(startDate, now, vehicleId: _selectedVehicle?.id);
+    final data = await DatabaseService.getAnalyticsForPeriod(startDate, endDate, vehicleId: _selectedVehicle?.id);
     final total = data.values.fold<double>(0.0, (sum, val) => sum + val);
 
     setState(() {
@@ -137,13 +152,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
         title: const Text('Аналитика расходов'),
         backgroundColor: Colors.blueGrey[900],
         foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.date_range),
-            tooltip: 'Выбрать период вручную',
-            onPressed: _showCustomPeriodDialog,
-          ),
-        ],
+        actions: [],
         bottom: TabBar(
           controller: _tabController,
           labelColor: Colors.white,
@@ -153,6 +162,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
             Tab(text: 'Неделя'),
             Tab(text: 'Месяц'),
             Tab(text: 'Год'),
+            Tab(text: 'Период'),
           ],
         ),
       ),
