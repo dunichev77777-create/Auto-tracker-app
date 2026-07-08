@@ -41,6 +41,21 @@ jobs:
     - name: Install dependencies
       run: flutter pub get
 
+    # Этот шаг автоматически исправит ошибку 'Namespace not specified' для Isar и других старых библиотек
+    - name: Force subprojects to use namespace (AGP Fix)
+      run: |
+        echo "subprojects {
+            afterEvaluate { project ->
+                if (project.hasProperty('android')) {
+                    project.android {
+                        if (namespace == null) {
+                            namespace = project.group
+                        }
+                    }
+                }
+            }
+        }" >> android/build.gradle
+
     - name: Build Android APK
       run: flutter build apk --${{ github.event.inputs.build_type || 'release' }}
 
