@@ -1,0 +1,89 @@
+name: Build Mobile Apps
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type'
+        required: true
+        default: 'release'
+        type: choice
+        options:
+          - release
+          - debug
+
+jobs:
+  # ================= СБОРКА ANDROID =================
+  build-android:
+    runs-on: ubuntu-latest # Экономит минуты и идеально подходит для Android
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v5
+
+    # Критически важно для Android: Flutter требует Java для работы Gradle
+    - name: Set up Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'zulu'
+        java-version: '17' # Версия 17 стабильно работает с Flutter 3.x
+
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.44.5'
+        channel: 'stable'
+        cache: true
+
+    - name: Install dependencies
+      run: flutter pub get
+
+    - name: Build Android APK
+      run: flutter build apk --${{ github.event.inputs.build_type || 'release' }}
+
+    - name: Rename APK
+      run: |
+        cd build/app/outputs/flutter-apk
+        mv app-${{ github.event.inputs.build_type || 'release' }}.apk auto_tracker_${{ github.event.inputs.build_type || 'release' }}_0.1.apk
+
+    - name: Upload APK artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: mycar-android-${{ github.event.inputs.build_type || 'release' }}
+        path: build/app/outputs/flutter-apk/auto_tracker_${{ github.event.inputs.build_type || 'release' }}_0.1.apk
+        retention-days: 30
+
+  # ================= СБОРКА IOS =================
+  build-ios:
+    runs-on: macos-latest # iOS можно собрать ТОЛЬКО на macOS
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v5
+      
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.44.5'
+        channel: 'stable'
+        cache: true
+        
+    - name: Install dependencies
+      run: flutter pub get
+      
+    - name: Build iOS IPA
+      run: flutter build ipa --${{ github.event.inputs.build_type || 'release' }} --no-codesign
+      
+    - name: Rename IPA
+      run: |
+        cd build/ios/ipa
+        mv *.ipa auto_tracker_release_0.1.ipa
+        
+    - name: Upload IPA artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: mycar-ios-${{ github.event.inputs.build_type || 'release' }}
+        path: build/ios/ipa/auto_tracker_release_0.1.ipa
+        retention-days: 30
