@@ -1,0 +1,81 @@
+name: Create Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g., v0.1.0)'
+        required: true
+        default: 'v0.1.0'
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.44.5'
+        channel: 'stable'
+        cache: true
+        
+    - name: Install dependencies
+      run: flutter pub get
+    
+    - name: Build Android APK
+      run: flutter build apk --release
+    
+    - name: Rename APK
+      run: |
+        mv build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/auto_tracker_release_0.1.apk
+    
+    - name: Build iOS IPA
+      run: flutter build ipa --release
+    
+    - name: Rename IPA
+      run: |
+        mv build/ios/ipa/*.ipa build/ios/ipa/auto_tracker_release_0.1.ipa
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+        name: Auto Tracker ${{ github.event.inputs.tag || github.ref_name }}
+        body: |
+          ## Auto Tracker Release
+          
+          ### Downloads:
+          - **Android APK:** `auto_tracker_release_0.1.apa`
+          - **iOS IPA:** `auto_tracker_release_0.1.ipa`
+          
+          ### Installation:
+          
+          **Android:**
+          1. Download APK file
+          2. Enable "Install from unknown sources" in settings
+          3. Open APK file to install
+          
+          **iOS:**
+          1. Download IPA file
+          2. Install via TestFlight, AltStore, or Ad-hoc
+          3. See installation guides in repository
+          
+          ### Changes:
+          - Keyboard layout fixes for dialogs
+          - Maintenance calculation logic improvements
+          - App icon generation
+          - iOS and Android build automation
+        files: |
+          build/app/outputs/flutter-apk/auto_tracker_release_0.1.apk
+          build/ios/ipa/auto_tracker_release_0.1.ipa
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

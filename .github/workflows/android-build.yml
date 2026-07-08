@@ -1,4 +1,4 @@
-name: Build iOS IPA
+name: Build Android APK
 
 on:
   push:
@@ -17,13 +17,13 @@ on:
           - debug
 
 jobs:
-  build-ios:
-    runs-on: macos-latest
+  build-android:
+    runs-on: ubuntu-latest
     
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
-      
+    
     - name: Setup Flutter
       uses: subosito/flutter-action@v2
       with:
@@ -33,21 +33,21 @@ jobs:
         
     - name: Install dependencies
       run: flutter pub get
-      
-    - name: Build iOS IPA
-      run: flutter build ipa --${{ github.event.inputs.build_type || 'release' }}
-      
-    - name: Rename IPA
+    
+    - name: Build Android APK
+      run: flutter build apk --${{ github.event.inputs.build_type || 'release' }}
+    
+    - name: Rename APK
       run: |
-        mv build/ios/ipa/*.ipa build/ios/ipa/auto_tracker_release_0.1.ipa
-        
-    - name: Upload IPA artifact
+        mv build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/auto_tracker_release_0.1.apk
+    
+    - name: Upload APK artifact
       uses: actions/upload-artifact@v4
       with:
-        name: mycar-ios-${{ github.event.inputs.build_type || 'release' }}
-        path: build/ios/ipa/auto_tracker_release_0.1.ipa
+        name: mycar-android-${{ github.event.inputs.build_type || 'release' }}
+        path: build/app/outputs/flutter-apk/auto_tracker_release_0.1.apk
         retention-days: 30
         
-    - name: Get IPA size
+    - name: Get APK size
       run: |
-        ls -lh build/ios/ipa/auto_tracker_release_0.1.ipa
+        ls -lh build/app/outputs/flutter-apk/auto_tracker_release_0.1.apk
