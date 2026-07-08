@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
 import 'Models/expense.dart';
@@ -25,9 +26,21 @@ class DatabaseService {
       [ExpenseSchema, ExpenseCategorySchema, MaintenanceSettingSchema, VehicleSchema],
       directory: dir.path,
     );
+    await _ensureMaintenanceSettingsCollection();
     await _initDefaultCategories();
     await _initDefaultVehicle();
     _isInitialized = true;
+  }
+
+  static Future<void> _ensureMaintenanceSettingsCollection() async {
+    try {
+      final count = await isar.maintenanceSettings.count();
+      if (count >= 0) {
+        return;
+      }
+    } catch (_) {
+      // Если коллекция не доступна, просто продолжим с существующей схемой.
+    }
   }
 
   /// Создаёт стандартный набор категорий, если база ещё не содержит ни одной.
@@ -216,50 +229,114 @@ class DatabaseService {
   }
   // --- Управление регламентами ТО ---
 
-  /// Возвращает список настроек обслуживания; при пустой базе создаёт дефолтные значения.
-  static Future<List<MaintenanceSetting>> getAllMaintenanceSettings() async {
-    final settings = await isar.maintenanceSettings.where().findAll();
+  /// Возвращает список настроек обслуживания для выбранного транспорта.
+  static Future<List<MaintenanceSetting>> getAllMaintenanceSettings({Id? vehicleId}) async {
+    try {
+      final settings = await isar.maintenanceSettings.where().findAll();
 
-    // Если база пуста (первый запуск), заполним её дефолтными значениями.
-    if (settings.isEmpty) {
-      final defaultSettings = [
-        MaintenanceSetting()
-          ..title = 'Моторное масло'
-          ..intervalKm = 10000
-          ..lastChangedOdometer = 0
-          ..lastChangedDate = DateTime.now()
-          ..showOnMainScreen = true,
-        MaintenanceSetting()
-          ..title = 'Свечи зажигания'
-          ..intervalKm = 30000
-          ..lastChangedOdometer = 0
-          ..lastChangedDate = DateTime.now()
-          ..showOnMainScreen = true,
-        MaintenanceSetting()
-          ..title = 'Тормозная жидкость'
-          ..intervalKm = 40000
-          ..lastChangedOdometer = 0
-          ..lastChangedDate = DateTime.now()
-          ..showOnMainScreen = false,
-      ];
-      await isar.writeTxn(() async {
-        await isar.maintenanceSettings.putAll(defaultSettings);
-      });
-      return defaultSettings;
+      final filteredSettings = <MaintenanceSetting>[];
+      for (final setting in settings) {
+        if (setting.matchesVehicleId(vehicleId)) {
+          filteredSettings.add(setting);
+        }
+      }
+
+      if (vehicleId != null && filteredSettings.isEmpty) {
+        final fallbackVehicle = await getDefaultVehicle();
+        if (fallbackVehicle != null) {
+          final legacySettings = <MaintenanceSetting>[];
+          for (final setting in settings) {
+            if (setting.vehicleId == null && setting.vehicle.value == null) {
+              setting.vehicleId = fallbackVehicle.id;
+              legacySettings.add(setting);
+            }
+          }
+
+          if (legacySettings.isNotEmpty) {
+            await isar.writeTxn(() async {
+              for (final setting in legacySettings) {
+                await isar.maintenanceSettings.put(setting);
+              }
+            });
+            return await getAllMaintenanceSettings(vehicleId: vehicleId);
+          }
+        }
+      }
+
+      return filteredSettings;
+    } catch (error, stackTrace) {
+      debugPrint('Failed to load maintenance settings: $error\n$stackTrace');
+      return [];
     }
-
-    return settings;
   }
 
-  /// Добавляет новое правило обслуживания в базу.
-  static Future<void> addMaintenanceSetting(MaintenanceSetting setting) async {
+  static Future<void> _ensureDefaultMaintenanceSettings() async {
+    final defaultVehicle = await getDefaultVehicle();
+    final defaultSettings = [
+      MaintenanceSetting()
+        ..title = 'Моторное масло'
+        ..intervalKm = 10000
+        ..lastChangedOdometer = 0
+        ..lastChangedDate = DateTime.now()
+        ..showOnMainScreen = true,
+      MaintenanceSetting()
+        ..title = 'Свечи зажигания'
+        ..intervalKm = 30000
+        ..lastChangedOdometer = 0
+        ..lastChangedDate = DateTime.now()
+        ..showOnMainScreen = true,
+      MaintenanceSetting()
+        ..title = 'Тормозная жидкость'
+        ..intervalKm = 40000
+        ..lastChangedOdometer = 0
+        ..lastChangedDate = DateTime.now()
+        ..showOnMainScreen = false,
+    ];
+
     await isar.writeTxn(() async {
-      await isar.maintenanceSettings.put(setting);
+      for (final setting in defaultSettings) {
+        if (defaultVehicle != null) {
+          setting.vehicleId = defaultVehicle.id;
+        }
+        await isar.maintenanceSettings.put(setting);
+      }
     });
   }
 
+  /// Добавляет новое правило обслуживания в базу.
+  static Future<bool> addMaintenanceSetting(MaintenanceSetting setting, {Id? vehicleId}) async {
+    try {
+      await isar.writeTxn(() async {
+        final vehicles = await isar.vehicles.where().findAll();
+        final fallbackVehicle = vehicles.isNotEmpty ? vehicles.first : null;
+        final targetVehicle = vehicleId != null
+            ? await isar.vehicles.get(vehicleId)
+            : fallbackVehicle;
+
+        if (targetVehicle != null) {
+          setting.vehicleId = targetVehicle.id;
+        }
+
+        final id = await isar.maintenanceSettings.put(setting);
+        if (id == 0) {
+          throw Exception('Maintenance setting ID was not assigned');
+        }
+      });
+      return true;
+    } catch (error, stackTrace) {
+      debugPrint('Failed to add maintenance setting: $error\n$stackTrace');
+      return false;
+    }
+  }
+
   /// Обновляет интервал обслуживания и пробег последней замены для выбранного правила.
-  static Future<void> updateMaintenanceSetting(Id id, int interval, int lastChanged, {bool? showOnMainScreen}) async {
+  static Future<void> updateMaintenanceSetting(
+    Id id,
+    int interval,
+    int lastChanged, {
+    bool? showOnMainScreen,
+    Id? vehicleId,
+  }) async {
     await isar.writeTxn(() async {
       final setting = await isar.maintenanceSettings.get(id);
       if (setting != null) {
@@ -268,8 +345,27 @@ class DatabaseService {
         if (showOnMainScreen != null) {
           setting.showOnMainScreen = showOnMainScreen;
         }
+        if (vehicleId != null) {
+          final vehicle = await isar.vehicles.get(vehicleId);
+          if (vehicle != null) {
+            setting.vehicleId = vehicle.id;
+          }
+        }
         await isar.maintenanceSettings.put(setting);
       }
     });
+  }
+
+  /// Удаляет правило обслуживания по его идентификатору.
+  static Future<bool> deleteMaintenanceSetting(Id id) async {
+    try {
+      await isar.writeTxn(() async {
+        await isar.maintenanceSettings.delete(id);
+      });
+      return true;
+    } catch (error, stackTrace) {
+      debugPrint('Failed to delete maintenance setting: $error\n$stackTrace');
+      return false;
+    }
   }
 }

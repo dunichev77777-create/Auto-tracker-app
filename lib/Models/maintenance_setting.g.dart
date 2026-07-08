@@ -47,6 +47,16 @@ const MaintenanceSettingSchema = CollectionSchema(
       id: 5,
       name: r'title',
       type: IsarType.string,
+    ),
+    r'vehicleId': PropertySchema(
+      id: 6,
+      name: r'vehicleId',
+      type: IsarType.long,
+    ),
+    r'vehicleName': PropertySchema(
+      id: 7,
+      name: r'vehicleName',
+      type: IsarType.string,
     )
   },
   estimateSize: _maintenanceSettingEstimateSize,
@@ -55,7 +65,14 @@ const MaintenanceSettingSchema = CollectionSchema(
   deserializeProp: _maintenanceSettingDeserializeProp,
   idName: r'id',
   indexes: {},
-  links: {},
+  links: {
+    r'vehicle': LinkSchema(
+      id: 8221517162334663726,
+      name: r'vehicle',
+      target: r'Vehicle',
+      single: true,
+    )
+  },
   embeddedSchemas: {},
   getId: _maintenanceSettingGetId,
   getLinks: _maintenanceSettingGetLinks,
@@ -70,6 +87,7 @@ int _maintenanceSettingEstimateSize(
 ) {
   var bytesCount = offsets.last;
   bytesCount += 3 + object.title.length * 3;
+  bytesCount += 3 + object.vehicleName.length * 3;
   return bytesCount;
 }
 
@@ -85,6 +103,8 @@ void _maintenanceSettingSerialize(
   writer.writeLong(offsets[3], object.lastChangedOdometer);
   writer.writeBool(offsets[4], object.showOnMainScreen);
   writer.writeString(offsets[5], object.title);
+  writer.writeLong(offsets[6], object.vehicleId);
+  writer.writeString(offsets[7], object.vehicleName);
 }
 
 MaintenanceSetting _maintenanceSettingDeserialize(
@@ -101,6 +121,7 @@ MaintenanceSetting _maintenanceSettingDeserialize(
   object.lastChangedOdometer = reader.readLong(offsets[3]);
   object.showOnMainScreen = reader.readBool(offsets[4]);
   object.title = reader.readString(offsets[5]);
+  object.vehicleId = reader.readLongOrNull(offsets[6]);
   return object;
 }
 
@@ -123,6 +144,10 @@ P _maintenanceSettingDeserializeProp<P>(
       return (reader.readBool(offset)) as P;
     case 5:
       return (reader.readString(offset)) as P;
+    case 6:
+      return (reader.readLongOrNull(offset)) as P;
+    case 7:
+      return (reader.readString(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
   }
@@ -134,12 +159,13 @@ Id _maintenanceSettingGetId(MaintenanceSetting object) {
 
 List<IsarLinkBase<dynamic>> _maintenanceSettingGetLinks(
     MaintenanceSetting object) {
-  return [];
+  return [object.vehicle];
 }
 
 void _maintenanceSettingAttach(
     IsarCollection<dynamic> col, Id id, MaintenanceSetting object) {
   object.id = id;
+  object.vehicle.attach(col, col.isar.collection<Vehicle>(), r'vehicle', id);
 }
 
 extension MaintenanceSettingQueryWhereSort
@@ -667,13 +693,237 @@ extension MaintenanceSettingQueryFilter
       ));
     });
   }
+
+  QueryBuilder<MaintenanceSetting, MaintenanceSetting, QAfterFilterCondition>
+      vehicleIdIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'vehicleId',
+      ));
+    });
+  }
+
+  QueryBuilder<MaintenanceSetting, MaintenanceSetting, QAfterFilterCondition>
+      vehicleIdIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'vehicleId',
+      ));
+    });
+  }
+
+  QueryBuilder<MaintenanceSetting, MaintenanceSetting, QAfterFilterCondition>
+      vehicleIdEqualTo(int? value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'vehicleId',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<MaintenanceSetting, MaintenanceSetting, QAfterFilterCondition>
+      vehicleIdGreaterThan(
+    int? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'vehicleId',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<MaintenanceSetting, MaintenanceSetting, QAfterFilterCondition>
+      vehicleIdLessThan(
+    int? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'vehicleId',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<MaintenanceSetting, MaintenanceSetting, QAfterFilterCondition>
+      vehicleIdBetween(
+    int? lower,
+    int? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'vehicleId',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<MaintenanceSetting, MaintenanceSetting, QAfterFilterCondition>
+      vehicleNameEqualTo(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'vehicleName',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<MaintenanceSetting, MaintenanceSetting, QAfterFilterCondition>
+      vehicleNameGreaterThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'vehicleName',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<MaintenanceSetting, MaintenanceSetting, QAfterFilterCondition>
+      vehicleNameLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'vehicleName',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<MaintenanceSetting, MaintenanceSetting, QAfterFilterCondition>
+      vehicleNameBetween(
+    String lower,
+    String upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'vehicleName',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<MaintenanceSetting, MaintenanceSetting, QAfterFilterCondition>
+      vehicleNameStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'vehicleName',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<MaintenanceSetting, MaintenanceSetting, QAfterFilterCondition>
+      vehicleNameEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'vehicleName',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<MaintenanceSetting, MaintenanceSetting, QAfterFilterCondition>
+      vehicleNameContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'vehicleName',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<MaintenanceSetting, MaintenanceSetting, QAfterFilterCondition>
+      vehicleNameMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'vehicleName',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<MaintenanceSetting, MaintenanceSetting, QAfterFilterCondition>
+      vehicleNameIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'vehicleName',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<MaintenanceSetting, MaintenanceSetting, QAfterFilterCondition>
+      vehicleNameIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'vehicleName',
+        value: '',
+      ));
+    });
+  }
 }
 
 extension MaintenanceSettingQueryObject
     on QueryBuilder<MaintenanceSetting, MaintenanceSetting, QFilterCondition> {}
 
 extension MaintenanceSettingQueryLinks
-    on QueryBuilder<MaintenanceSetting, MaintenanceSetting, QFilterCondition> {}
+    on QueryBuilder<MaintenanceSetting, MaintenanceSetting, QFilterCondition> {
+  QueryBuilder<MaintenanceSetting, MaintenanceSetting, QAfterFilterCondition>
+      vehicle(FilterQuery<Vehicle> q) {
+    return QueryBuilder.apply(this, (query) {
+      return query.link(q, r'vehicle');
+    });
+  }
+
+  QueryBuilder<MaintenanceSetting, MaintenanceSetting, QAfterFilterCondition>
+      vehicleIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.linkLength(r'vehicle', 0, true, 0, true);
+    });
+  }
+}
 
 extension MaintenanceSettingQuerySortBy
     on QueryBuilder<MaintenanceSetting, MaintenanceSetting, QSortBy> {
@@ -758,6 +1008,34 @@ extension MaintenanceSettingQuerySortBy
       sortByTitleDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'title', Sort.desc);
+    });
+  }
+
+  QueryBuilder<MaintenanceSetting, MaintenanceSetting, QAfterSortBy>
+      sortByVehicleId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'vehicleId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<MaintenanceSetting, MaintenanceSetting, QAfterSortBy>
+      sortByVehicleIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'vehicleId', Sort.desc);
+    });
+  }
+
+  QueryBuilder<MaintenanceSetting, MaintenanceSetting, QAfterSortBy>
+      sortByVehicleName() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'vehicleName', Sort.asc);
+    });
+  }
+
+  QueryBuilder<MaintenanceSetting, MaintenanceSetting, QAfterSortBy>
+      sortByVehicleNameDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'vehicleName', Sort.desc);
     });
   }
 }
@@ -861,6 +1139,34 @@ extension MaintenanceSettingQuerySortThenBy
       return query.addSortBy(r'title', Sort.desc);
     });
   }
+
+  QueryBuilder<MaintenanceSetting, MaintenanceSetting, QAfterSortBy>
+      thenByVehicleId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'vehicleId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<MaintenanceSetting, MaintenanceSetting, QAfterSortBy>
+      thenByVehicleIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'vehicleId', Sort.desc);
+    });
+  }
+
+  QueryBuilder<MaintenanceSetting, MaintenanceSetting, QAfterSortBy>
+      thenByVehicleName() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'vehicleName', Sort.asc);
+    });
+  }
+
+  QueryBuilder<MaintenanceSetting, MaintenanceSetting, QAfterSortBy>
+      thenByVehicleNameDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'vehicleName', Sort.desc);
+    });
+  }
 }
 
 extension MaintenanceSettingQueryWhereDistinct
@@ -904,6 +1210,20 @@ extension MaintenanceSettingQueryWhereDistinct
       distinctByTitle({bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'title', caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<MaintenanceSetting, MaintenanceSetting, QDistinct>
+      distinctByVehicleId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'vehicleId');
+    });
+  }
+
+  QueryBuilder<MaintenanceSetting, MaintenanceSetting, QDistinct>
+      distinctByVehicleName({bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'vehicleName', caseSensitive: caseSensitive);
     });
   }
 }
@@ -953,6 +1273,19 @@ extension MaintenanceSettingQueryProperty
   QueryBuilder<MaintenanceSetting, String, QQueryOperations> titleProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'title');
+    });
+  }
+
+  QueryBuilder<MaintenanceSetting, int?, QQueryOperations> vehicleIdProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'vehicleId');
+    });
+  }
+
+  QueryBuilder<MaintenanceSetting, String, QQueryOperations>
+      vehicleNameProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'vehicleName');
     });
   }
 }

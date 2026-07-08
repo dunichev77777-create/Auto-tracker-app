@@ -1,6 +1,6 @@
 {
-    "name": "mycar",
-    "short_name": "mycar",
+    "name": "Auto tracker",
+    "short_name": "Auto tracker",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

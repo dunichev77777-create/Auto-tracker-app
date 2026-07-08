@@ -159,7 +159,7 @@ class _MainScreenState extends State<MainScreen> {
       // Главный экран объединяет в себе общую аналитику, блок ТО и историю расходов.
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text('mycar', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Auto tracker', style: TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
         backgroundColor: Colors.blueGrey[900],
         foregroundColor: Colors.white,
@@ -182,7 +182,7 @@ class _MainScreenState extends State<MainScreen> {
                 children: [
                   Icon(Icons.directions_car, color: Colors.white, size: 36),
                   SizedBox(height: 8),
-                  Text('mycar', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                  Text('Auto tracker', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
                   Text('Управление расходами и ТО', style: TextStyle(color: Colors.white70, fontSize: 13)),
                 ],
               ),
@@ -273,7 +273,7 @@ class _MainScreenState extends State<MainScreen> {
                   children: [
                     Expanded(
                       child: DropdownButtonFormField<Vehicle?>(
-                        initialValue: _selectedVehicle,
+                        value: _selectedVehicle,
                         decoration: const InputDecoration(labelText: 'Транспорт'),
                         items: [
                           const DropdownMenuItem<Vehicle?>(value: null, child: Text('Все')),
@@ -350,29 +350,33 @@ class _MainScreenState extends State<MainScreen> {
                 const SizedBox(height: 6),
 
                 // Динамический вывод регламентов ТО из базы Isar
-                FutureBuilder<List<MaintenanceSetting>>(
-                  future: DatabaseService.getAllMaintenanceSettings(),
-                  builder: (context, settingsSnapshot) {
-                    if (!settingsSnapshot.hasData) return const SizedBox(height: 110);
-                    final settings = settingsSnapshot.data!.where((rule) => rule.showOnMainScreen).toList();
+                if (_selectedVehicle != null)
+                  FutureBuilder<List<MaintenanceSetting>>(
+                    future: DatabaseService.getAllMaintenanceSettings(vehicleId: _selectedVehicle?.id),
+                    builder: (context, settingsSnapshot) {
+                      if (!settingsSnapshot.hasData) return const SizedBox(height: 110);
+                      final settings = settingsSnapshot.data ?? [];
+                      final visibleSettings = settings.where((rule) => rule.showOnMainScreen).toList();
+                      final displaySettings = visibleSettings.isEmpty && settings.isNotEmpty ? settings : visibleSettings;
 
-                    return SizedBox(
-                      height: 110, // Увеличили высоту для безопасности
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: settings.length,
-                        itemBuilder: (context, index) {
-                          final rule = settings[index];
-                          
-                          // Формула: (Пробег_Посл_Замены + Интервал) - Текущий_Пробег
-                          final int remaining = (rule.lastChangedOdometer + rule.intervalKm) - currentOdometer;
-                          
-                          return _buildMaintenanceItem(rule.title, remaining, rule.intervalKm);
-                        },
-                      ),
-                    );
-                  },
-                ),
+                      if (displaySettings.isEmpty) {
+                        return const SizedBox(height: 110);
+                      }
+
+                      return SizedBox(
+                        height: 110,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: displaySettings.length,
+                          itemBuilder: (context, index) {
+                            final rule = displaySettings[index];
+                            final int remaining = (rule.lastChangedOdometer + rule.intervalKm) - currentOdometer;
+                            return _buildMaintenanceItem(rule.title, remaining, rule.intervalKm);
+                          },
+                        ),
+                      );
+                    },
+                  ),
                 const SizedBox(height: 24),
 
                 const Text('История событий', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),

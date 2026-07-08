@@ -71,6 +71,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
       setState(() {
         _categories = categories;
+        _vehicles = vehicles;
         _selectedCategory = categories.firstWhere(
           (c) => c.id == currentExpense.category.value?.id,
           orElse: () => categories.first,
@@ -373,7 +374,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   ..comment = _commentController.text.isEmpty ? null : _commentController.text;
 
                 expense.category.value = _selectedCategory;
-                expense.vehicle.value = _selectedVehicle;
+                if (_selectedVehicle != null) {
+                  expense.vehicle.value = _selectedVehicle;
+                }
 
                 await DatabaseService.saveExpense(expense);
 
