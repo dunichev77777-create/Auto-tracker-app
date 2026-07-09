@@ -12,19 +12,19 @@ on:
         default: 'v0.1.0'
 
 jobs:
-  create-release:
+  build-android:
     runs-on: ubuntu-latest
     
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
-      
+    
     - name: Set up Java
       uses: actions/setup-java@v4
       with:
         distribution: 'zulu'
         java-version: '17'
-      
+    
     - name: Setup Flutter
       uses: subosito/flutter-action@v2
       with:
@@ -57,12 +57,63 @@ jobs:
       run: |
         mv build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/auto_tracker_release_0.1.apk
     
-    - name: Build iOS IPA
-      run: flutter build ipa --release
+    - name: Upload APK artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: android-apk
+        path: build/app/outputs/flutter-apk/auto_tracker_release_0.1.apk
+        retention-days: 7
+
+  build-ios:
+    runs-on: macos-latest
     
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.44.5'
+        channel: 'stable'
+        cache: true
+        
+    - name: Install dependencies
+      run: flutter pub get
+      
+    - name: Build iOS IPA
+      run: flutter build ipa --release --no-codesign
+      
     - name: Rename IPA
       run: |
         mv build/ios/ipa/*.ipa build/ios/ipa/auto_tracker_release_0.1.ipa
+      
+    - name: Upload IPA artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ios-ipa
+        path: build/ios/ipa/auto_tracker_release_0.1.ipa
+        retention-days: 7
+
+  create-release:
+    needs: [build-android, build-ios]
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Download Android APK
+      uses: actions/download-artifact@v4
+      with:
+        name: android-apk
+        path: artifacts
+    
+    - name: Download iOS IPA
+      uses: actions/download-artifact@v4
+      with:
+        name: ios-ipa
+        path: artifacts
     
     - name: Create Release
       uses: softprops/action-gh-release@v1
@@ -73,7 +124,7 @@ jobs:
           ## Auto Tracker Release
           
           ### Downloads:
-          - **Android APK:** `auto_tracker_release_0.1.apa`
+          - **Android APK:** `auto_tracker_release_0.1.apk`
           - **iOS IPA:** `auto_tracker_release_0.1.ipa`
           
           ### Installation:
@@ -94,8 +145,8 @@ jobs:
           - App icon generation
           - iOS and Android build automation
         files: |
-          build/app/outputs/flutter-apk/auto_tracker_release_0.1.apk
-          build/ios/ipa/auto_tracker_release_0.1.ipa
+          artifacts/auto_tracker_release_0.1.apk
+          artifacts/auto_tracker_release_0.1.ipa
         draft: false
         prerelease: false
       env:
