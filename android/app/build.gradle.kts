@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.kiril.mycar"
-    compileSdk = 34
+    compileSdk = 35
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
