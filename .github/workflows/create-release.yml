@@ -38,7 +38,8 @@ jobs:
     # This step automatically fixes the 'Namespace not specified' error for Isar and other old libraries
     - name: Force subprojects to use namespace (AGP Fix)
       run: |
-        echo "subprojects {
+        echo "
+        subprojects {
             afterEvaluate { project ->
                 if (project.hasProperty('android')) {
                     project.android {
@@ -48,7 +49,8 @@ jobs:
                     }
                 }
             }
-        }" >> android/build.gradle
+        }
+        " >> android/build.gradle.kts
     
     - name: Build Android APK
       run: flutter build apk --release
@@ -86,7 +88,8 @@ jobs:
       
     - name: Rename IPA
       run: |
-        mv build/ios/ipa/*.ipa build/ios/ipa/auto_tracker_release_0.1.ipa
+        cd build/ios/ipa
+        mv *.ipa auto_tracker_release_0.1.ipa
       
     - name: Upload IPA artifact
       uses: actions/upload-artifact@v4
