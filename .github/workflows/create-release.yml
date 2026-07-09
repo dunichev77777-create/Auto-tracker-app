@@ -19,6 +19,12 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
       
+    - name: Set up Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'zulu'
+        java-version: '17'
+      
     - name: Setup Flutter
       uses: subosito/flutter-action@v2
       with:
@@ -28,6 +34,21 @@ jobs:
         
     - name: Install dependencies
       run: flutter pub get
+    
+    # This step automatically fixes the 'Namespace not specified' error for Isar and other old libraries
+    - name: Force subprojects to use namespace (AGP Fix)
+      run: |
+        echo "subprojects {
+            afterEvaluate { project ->
+                if (project.hasProperty('android')) {
+                    project.android {
+                        if (namespace == null) {
+                            namespace = project.group
+                        }
+                    }
+                }
+            }
+        }" >> android/build.gradle
     
     - name: Build Android APK
       run: flutter build apk --release
