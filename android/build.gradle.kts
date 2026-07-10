@@ -19,14 +19,13 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
-subprojects {
-    afterEvaluate {
-        if (hasProperty("android")) {
-            val android = extensions.getByName("android") as com.android.build.gradle.LibraryExtension
-            if (android.namespace == null) {
-                android.namespace = group.toString()
+subprojects.configureEach {
+    plugins.withId("com.android.library") {
+        extensions.configure<com.android.build.gradle.LibraryExtension>("android") {
+            if (namespace == null) {
+                namespace = project.group.toString()
             }
-            android.compileSdk = 35
+            compileSdk = 35
         }
     }
 }

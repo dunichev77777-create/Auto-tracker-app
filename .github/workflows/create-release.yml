@@ -67,7 +67,7 @@ jobs:
       run: flutter pub get
       
     - name: Build iOS IPA
-      run: flutter build ipa --release --no-codesign || (echo "iOS build failed, checking logs" && exit 1)
+      run: flutter build ipa --release --no-codesign
     
     - name: List build output
       run: |
