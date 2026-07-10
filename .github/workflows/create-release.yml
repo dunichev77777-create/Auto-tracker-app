@@ -56,6 +56,11 @@ jobs:
     - name: Build Android APK
       run: flutter build apk --release
     
+    - name: Find APK
+      run: |
+        echo "=== Looking for APK files ==="
+        find build -name "*.apk" 2>/dev/null || echo "No APK files found"
+    
     - name: Rename APK
       run: |
         mv build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/auto_tracker_release_0.1.apk
